@@ -24,7 +24,7 @@ import streamlit.components.v1 as components
 import copy
 
 # ================= 0. 全局權限攔截 (Global Auth Interceptor) =================
-st.set_page_config(page_title="AI 智能默書 ((v197))", page_icon="📝", layout="wide")
+st.set_page_config(page_title="AI 智能默書 ((v198))", page_icon="📝", layout="wide")
 
 # [V184 Fix] 最優先檢查：如果 URL 包含 role=student，直接鎖定為學生模式
 query_params = st.query_params
@@ -969,33 +969,59 @@ if st.session_state.get('mode', 'home') == 'home':
     st.markdown("""
     <style>
     div[data-testid="stButton"] button[kind="primary"] {
-        height: 180px !important; width: 100% !important; border-radius: 24px !important;
+        height: 180px !important;
+        width: 100% !important;
+        border-radius: 24px !important;
         background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%) !important;
-        color: #006064 !important; border: none !important; box-shadow: 0 4px 15px rgba(0,188,212, 0.15) !important;
+        color: #006064 !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(0,188,212, 0.15) !important;
     }
-    div[data-testid="stButton"] button[kind="primary"] p { font-size: 24px !important; font-weight: 800 !important; }
+    div[data-testid="stButton"] button[kind="primary"] p {
+        font-size: 24px !important;
+        font-weight: 800 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
-    st.title("📝 默書神隊友 ((v197))")
-    
+
+    st.title("📝 默書神隊友 ((v198))")
+
     local_hist = load_history_local()
     if local_hist:
-        if "custom_title" in local_hist: st.session_state.custom_title = local_hist["custom_title"]
-        if "dictation_info" in local_hist: st.session_state.dictation_info = local_hist["dictation_info"]
-        if st.button(f"🔄 繼續上次練習 ({local_hist.get('date_str','')})", use_container_width=True, type="secondary"):
+        if "custom_title" in local_hist:
+            st.session_state.custom_title = local_hist["custom_title"]
+        if "dictation_info" in local_hist:
+            st.session_state.dictation_info = local_hist["dictation_info"]
+
+        if st.button(
+            f"🔄 繼續上次練習 ({local_hist.get('date_str','')})",
+            use_container_width=True,
+            type="secondary"
+        ):
             st.session_state.active_list = local_hist.get("active_list", [])
-            st.session_state.settings = sanitize_settings(local_hist.get("settings", st.session_state.settings))
-            st.session_state.mode = 'confirm'; st.rerun()
+            st.session_state.settings = sanitize_settings(
+                local_hist.get("settings", st.session_state.settings)
+            )
+            st.session_state.mode = 'confirm'
+            st.rerun()
 
     c1, c2 = st.columns(2)
-    if c1.button("📸 拍攝", key="cam", type="primary", use_container_width=True): 
-        st.session_state.mode = 'input'; st.session_state.input_source = "camera"; st.rerun()
-    if c2.button("🖼️ 相簿", key="up", type="primary", use_container_width=True): 
-        st.session_state.mode = 'input'; st.session_state.input_source = "upload"; st.rerun()
+
+    if c1.button("📷 拍照 / 上傳", key="camup", type="primary", use_container_width=True):
+        st.session_state.mode = 'input'
+        st.session_state.input_source = "upload"
+        st.rerun()
+
+    if c2.button("✍️ 手動輸入", key="manual_home", type="primary", use_container_width=True):
+        st.session_state.mode = 'input'
+        st.session_state.input_source = "manual"
+        st.rerun()
 
     if st.button("⭐ 溫習收藏字庫", use_container_width=True):
         favs = load_favorites()
-        if not favs: st.toast("尚無收藏內容"); time.sleep(1)
+        if not favs:
+            st.toast("尚無收藏內容")
+            time.sleep(1)
         else:
             st.session_state.active_list = favs
             st.session_state.runtime_list = favs
@@ -1003,9 +1029,10 @@ if st.session_state.get('mode', 'home') == 'home':
             st.rerun()
 
     with st.expander("更多選項"):
-        ec1, ec2 = st.columns(2)
-        if ec1.button("🤖 AI 出題", type="secondary", use_container_width=True): st.session_state.mode = 'input'; st.session_state.input_source = "ai"; st.rerun()
-        if ec2.button("✍️ 手動輸入", type="secondary", use_container_width=True): st.session_state.mode = 'input'; st.session_state.input_source = "manual"; st.rerun()
+        if st.button("🤖 AI 出題", type="secondary", use_container_width=True):
+            st.session_state.mode = 'input'
+            st.session_state.input_source = "ai"
+            st.rerun()
 
     if st.session_state.show_settings_popup:
         @st.dialog("⚙️ 設定與確認")
@@ -1020,10 +1047,13 @@ elif st.session_state.mode == 'input':
     src = st.session_state.input_source
     img = None
     
-    if src == "camera": 
-        img = st.camera_input("拍攝")
-    elif src == "upload": 
-        img = st.file_uploader("上傳", type=["jpg","png"], accept_multiple_files=True)
+    if src == "upload":
+        img = st.file_uploader(
+            "📷 拍照或上傳圖片",
+            type=["jpg", "jpeg", "png", "webp"],
+            accept_multiple_files=True,
+            help="在手機 / iPad 上可直接選擇拍照或照片圖庫"
+        )
     elif src == "ai":
         st.info("🤖 請輸入主題，AI 將為您生成詞語和句子")
         topic = st.text_input("輸入主題")
@@ -1043,7 +1073,7 @@ elif st.session_state.mode == 'input':
     elif src == "manual":
         st.info("✍️ 請直接點擊下一步，進入編輯頁面手動輸入")
     
-    if src in ["camera", "upload"]:
+    if src == "upload":
         with st.container(border=True):
             st.write("⚙️ 提取設定")
             c_set1, c_set2 = st.columns(2)
