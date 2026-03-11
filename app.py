@@ -24,7 +24,7 @@ import streamlit.components.v1 as components
 import copy
 
 # ================= 0. 全局權限攔截 (Global Auth Interceptor) =================
-st.set_page_config(page_title="AI 智能默書 ((v200))", page_icon="📝", layout="wide")
+st.set_page_config(page_title="AI 智能默書 ((v199))", page_icon="📝", layout="wide")
 
 # [V184 Fix] 最優先檢查：如果 URL 包含 role=student，直接鎖定為學生模式
 query_params = st.query_params
@@ -35,25 +35,15 @@ if query_params.get("role") == "student":
 
 # ================= 1. 資料庫初始化 =================
 DB_NAME = "dictation.db"
-PERSISTENT_DISK_PATH = os.environ.get("DICTATION_DB_DIR", "/var/data")
-DB_PATH = os.path.join(PERSISTENT_DISK_PATH, DB_NAME)
-
-def get_db_connection():
-    """取得 SQLite 連線（Render Persistent Disk 版本）"""
-    conn = sqlite3.connect(DB_PATH, timeout=10, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    return conn
+DB_PATH = os.path.join(os.getcwd(), DB_NAME)
 
 def init_db():
     """初始化 SQLite 資料庫"""
     try:
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS sessions
                      (sid TEXT PRIMARY KEY, data TEXT, created_at REAL)''')
-        c.execute("CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at)")
         conn.commit()
         conn.close()
     except Exception as e:
@@ -117,32 +107,16 @@ if 'expanded_items' not in st.session_state: st.session_state.expanded_items = s
 # ================= 2. 輔助函式 (Helpers) =================
 # Short ID 邏輯
 def create_short_link(data_dict):
-    """將資料存入 SQLite 並回傳 8 位 SID（Persistent Disk 版本）"""
-    payload = copy.deepcopy(data_dict)
-    payload['is_student_mode'] = True  # 確保資料本身標記為學生
-    json_str = json.dumps(payload, ensure_ascii=False)
-
+    """將資料存入 SQLite 並回傳 6 位數 SID"""
+    sid = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    data_dict['is_student_mode'] = True # 確保資料本身標記為學生
+    json_str = json.dumps(data_dict, ensure_ascii=False)
+    
     try:
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-
-        sid = None
-        for _ in range(20):
-            candidate = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            c.execute("SELECT 1 FROM sessions WHERE sid=?", (candidate,))
-            if c.fetchone() is None:
-                sid = candidate
-                break
-
-        if sid is None:
-            conn.close()
-            st.error("連結生成失敗：無法取得可用 SID")
-            return None
-
-        c.execute(
-            "INSERT INTO sessions (sid, data, created_at) VALUES (?, ?, ?)",
-            (sid, json_str, time.time())
-        )
+        c.execute("INSERT OR REPLACE INTO sessions (sid, data, created_at) VALUES (?, ?, ?)", 
+                  (sid, json_str, time.time()))
         conn.commit()
         conn.close()
         return sid
@@ -153,7 +127,7 @@ def create_short_link(data_dict):
 def load_data_from_sid(sid):
     """從 SQLite 讀取資料"""
     try:
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT data FROM sessions WHERE sid=?", (sid,))
         result = c.fetchone()
@@ -161,7 +135,7 @@ def load_data_from_sid(sid):
         if result:
             return json.loads(result[0])
         return None
-    except Exception:
+    except:
         return None
 
 # [V184 Fix] 動態網址複製列
@@ -963,7 +937,7 @@ if st.session_state.get('mode', 'home') == 'home':
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("📝 默書神隊友 ((v200))")
+    st.title("📝 默書神隊友 ((v199))")
 
     c1, c2 = st.columns(2)
 
@@ -1259,7 +1233,7 @@ elif st.session_state.mode == 'revision':
     for i, item in enumerate(target_list):
         bg_class = "bg-vocab" if item["type"] == "word" else "bg-sent"
         
-        # [V200] 兩欄式佈局：[8, 1]
+        # [V199] 兩欄式佈局：[8, 1]
         col_card, col_exp = st.columns([8, 1], vertical_alignment="center")
         
         with col_card:
