@@ -24,7 +24,7 @@ import streamlit.components.v1 as components
 import copy
 
 # ================= 0. 全局權限攔截 (Global Auth Interceptor) =================
-st.set_page_config(page_title="AI 智能默書 ((v198))", page_icon="📝", layout="wide")
+st.set_page_config(page_title="AI 智能默書 ((v199))", page_icon="📝", layout="wide")
 
 # [V184 Fix] 最優先檢查：如果 URL 包含 role=student，直接鎖定為學生模式
 query_params = st.query_params
@@ -62,7 +62,6 @@ if 'raw_vocab_text' not in st.session_state: st.session_state.raw_vocab_text = "
 if 'raw_sentence_text' not in st.session_state: st.session_state.raw_sentence_text = ""
 if 'active_list' not in st.session_state: st.session_state.active_list = []
 if 'runtime_list' not in st.session_state: st.session_state.runtime_list = [] 
-if 'favorites' not in st.session_state: st.session_state.favorites = [] 
 
 # 設定與標題
 if 'custom_title' not in st.session_state: st.session_state.custom_title = "自律補習社"
@@ -208,52 +207,6 @@ def render_copy_row(label, params_suffix, extra_info="", info_version_label=""):
     </script>
     """
     components.html(html_code, height=190)
-HISTORY_FILE = "dictation_history.json"
-FAV_FILE = "dictation_favorites.json"
-
-def save_history_local(data_dict):
-    data_dict["timestamp"] = time.time(); data_dict["date_str"] = time.strftime("%Y-%m-%d %H:%M")
-    data_dict["custom_title"] = st.session_state.custom_title
-    data_dict["dictation_info"] = st.session_state.dictation_info
-    try:
-        with open(HISTORY_FILE, "w", encoding="utf-8") as f: json.dump(data_dict, f, ensure_ascii=False)
-    except: pass
-
-def load_history_local():
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f: return json.load(f)
-        except: return None
-    return None
-
-def load_favorites():
-    if os.path.exists(FAV_FILE):
-        try:
-            with open(FAV_FILE, "r", encoding="utf-8") as f: return json.load(f)
-        except: return []
-    return []
-
-def save_favorites(fav_list):
-    try:
-        with open(FAV_FILE, "w", encoding="utf-8") as f: json.dump(fav_list, f, ensure_ascii=False)
-    except: pass
-
-def toggle_favorite(text):
-    favs = load_favorites()
-    exists = False
-    for item in favs:
-        if item['text'] == text: exists = True; break
-    if exists: favs = [f for f in favs if f['text'] != text]
-    else: favs.append({"text": text, "type": "word"})
-    save_favorites(favs)
-    return favs
-
-def is_favorite(text):
-    favs = load_favorites()
-    for item in favs:
-        if item['text'] == text: return True
-    return False
-
 def detect_language(text_list):
     total_chars = 0
     ascii_chars = 0
@@ -984,26 +937,7 @@ if st.session_state.get('mode', 'home') == 'home':
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("📝 默書神隊友 ((v198))")
-
-    local_hist = load_history_local()
-    if local_hist:
-        if "custom_title" in local_hist:
-            st.session_state.custom_title = local_hist["custom_title"]
-        if "dictation_info" in local_hist:
-            st.session_state.dictation_info = local_hist["dictation_info"]
-
-        if st.button(
-            f"🔄 繼續上次練習 ({local_hist.get('date_str','')})",
-            use_container_width=True,
-            type="secondary"
-        ):
-            st.session_state.active_list = local_hist.get("active_list", [])
-            st.session_state.settings = sanitize_settings(
-                local_hist.get("settings", st.session_state.settings)
-            )
-            st.session_state.mode = 'confirm'
-            st.rerun()
+    st.title("📝 默書神隊友 ((v199))")
 
     c1, c2 = st.columns(2)
 
@@ -1016,17 +950,6 @@ if st.session_state.get('mode', 'home') == 'home':
         st.session_state.mode = 'input'
         st.session_state.input_source = "manual"
         st.rerun()
-
-    if st.button("⭐ 溫習收藏字庫", use_container_width=True):
-        favs = load_favorites()
-        if not favs:
-            st.toast("尚無收藏內容")
-            time.sleep(1)
-        else:
-            st.session_state.active_list = favs
-            st.session_state.runtime_list = favs
-            st.session_state.mode = 'revision'
-            st.rerun()
 
     with st.expander("更多選項"):
         if st.button("🤖 AI 出題", type="secondary", use_container_width=True):
@@ -1151,7 +1074,6 @@ elif st.session_state.mode == 'edit':
         v_lines = [l.strip() for l in re.sub(r'\n+', '\n', st.session_state.raw_vocab_text).split('\n') if l.strip()]
         s_lines = [l.strip() for l in re.sub(r'\n+', '\n', st.session_state.raw_sentence_text).split('\n') if l.strip()]
         st.session_state.active_list = [{"text": x, "type": "word"} for x in v_lines] + [{"text": x, "type": "sentence"} for x in s_lines]
-        save_history_local({"active_list": st.session_state.active_list, "settings": st.session_state.settings})
         st.session_state.mode = 'confirm'; st.rerun()
 
 # --- MODE 4: 設定與確認 (Confirm) ---
@@ -1311,21 +1233,12 @@ elif st.session_state.mode == 'revision':
     for i, item in enumerate(target_list):
         bg_class = "bg-vocab" if item["type"] == "word" else "bg-sent"
         
-        # [V188] 三欄式佈局：[8, 1, 1] 更緊湊
-        col_card, col_fav, col_exp = st.columns([8, 1, 1], vertical_alignment="center")
+        # [V199] 兩欄式佈局：[8, 1]
+        col_card, col_exp = st.columns([8, 1], vertical_alignment="center")
         
         with col_card:
             st.markdown(f"""<div class="list-card"><div class="list-index-badge {bg_class}">{i+1}</div><div class="list-text">{item['text']}</div></div>""", unsafe_allow_html=True)
         
-        # 收藏按鈕
-        with col_fav:
-            is_fav = is_favorite(item['text'])
-            fav_icon = "⭐" if is_fav else "☆"
-            fav_type = "primary" if is_fav else "secondary"
-            if st.button(fav_icon, key=f"fav_btn_{i}", type=fav_type):
-                toggle_favorite(item['text'])
-                st.rerun()
-
         # 展開/收起按鈕 (點擊切換)
         with col_exp:
             is_exp = i in st.session_state.expanded_items
