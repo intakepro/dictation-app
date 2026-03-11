@@ -894,7 +894,7 @@ def copy_link_dialog():
     "普通話版本",
     f"?sid={sid_manda}&role=student",
     st.session_state.dictation_info,
-    "（國語版）"
+    "（普通話版）"
 )
 
     else:
